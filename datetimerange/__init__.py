@@ -55,11 +55,16 @@ class DateTimeRange(object):
         end_datetime=None,
         start_time_format="%Y-%m-%dT%H:%M:%S%z",
         end_time_format="%Y-%m-%dT%H:%M:%S%z",
+        start_inclusive=True,
+        end_inclusive=True,
     ):
         self.set_time_range(start_datetime, end_datetime)
 
         self.start_time_format = start_time_format
         self.end_time_format = end_time_format
+
+        self.start_inclusive = start_inclusive
+        self.end_inclusive = end_inclusive
 
         self.is_output_elapse = False
         self.separator = " - "
@@ -114,25 +119,19 @@ class DateTimeRange(object):
         :type x: |datetime|/``DateTimeRange``/|str|
         :return: |True| if the ``x`` is within the time range
         :rtype: bool
-
         :Sample Code:
             .. code:: python
-
                 from datetimerange import DateTimeRange
-
                 time_range = DateTimeRange("2015-03-22T10:00:00+0900", "2015-03-22T10:10:00+0900")
                 print("2015-03-22T10:05:00+0900" in time_range)
                 print("2015-03-22T10:15:00+0900" in time_range)
-
                 time_range_smaller = DateTimeRange("2015-03-22T10:03:00+0900", "2015-03-22T10:07:00+0900")
                 print(time_range_smaller in time_range)
         :Output:
             .. parsed-literal::
-
                 True
                 False
                 True
-
         .. seealso::
             :py:meth:`.validate_time_inversion`
         """
@@ -140,12 +139,26 @@ class DateTimeRange(object):
         self.validate_time_inversion()
 
         if isinstance(x, DateTimeRange):
+            if (
+                not self.start_inclusive and x.start_datetime == self.start_datetime
+            ) or (
+                not self.end_inclusive and x.end_datetime == self.end_datetime
+            ):
+                return False
+
             return x.start_datetime >= self.start_datetime and x.end_datetime <= self.end_datetime
 
         try:
             value = dateutil.parser.parse(x)
         except (TypeError, AttributeError):
             value = x
+
+        if (
+            not self.start_inclusive and value == self.start_datetime
+        ) or (
+            not self.end_inclusive and value == self.end_datetime
+        ):
+            return False
 
         return self.start_datetime <= value <= self.end_datetime
 

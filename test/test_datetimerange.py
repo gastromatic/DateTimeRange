@@ -41,6 +41,33 @@ def datetimerange_normal():
 
 
 @pytest.fixture
+def datetimerange_start_exclusive():
+    value = DateTimeRange(TEST_START_DATETIME, TEST_END_DATETIME, start_inclusive=False)
+    value.start_time_format = ISO_TIME_FORMAT
+    value.end_time_format = ISO_TIME_FORMAT
+
+    return value
+
+
+@pytest.fixture
+def datetimerange_end_exclusive():
+    value = DateTimeRange(TEST_START_DATETIME, TEST_END_DATETIME, end_inclusive=False)
+    value.start_time_format = ISO_TIME_FORMAT
+    value.end_time_format = ISO_TIME_FORMAT
+
+    return value
+
+
+@pytest.fixture
+def datetimerange_all_exclusive():
+    value = DateTimeRange(TEST_START_DATETIME, TEST_END_DATETIME, start_inclusive=False, end_inclusive=False)
+    value.start_time_format = ISO_TIME_FORMAT
+    value.end_time_format = ISO_TIME_FORMAT
+
+    return value
+
+
+@pytest.fixture
 def datetimerange_inversion():
     value = DateTimeRange(TEST_END_DATETIME, TEST_START_DATETIME)
     value.start_time_format = ISO_TIME_FORMAT
@@ -433,6 +460,81 @@ class Test_DateTimeRange_contains(object):
     )
     def test_normal(self, datetimerange_normal, value, expected):
         assert (value in datetimerange_normal) == expected
+
+    @pytest.mark.parametrize(
+        ["value", "expected"],
+        [
+            [TEST_START_DATETIME, False],
+            [TEST_END_DATETIME, True],
+            [
+                DateTimeRange("2015-03-22 10:00:00" + TIMEZONE, "2015-03-22 10:05:00" + TIMEZONE),
+                False,
+            ],
+            [
+                DateTimeRange("2015-03-22 10:00:00" + TIMEZONE, "2015-03-22 10:10:00" + TIMEZONE),
+                False,
+            ],
+
+            ["2015-03-22 09:59:59" + TIMEZONE, False],
+            ["2015-03-22 10:10:01" + TIMEZONE, False],
+            ["2015-03-22 10:00:00" + TIMEZONE, False],
+            ["2015-03-22 10:10:00" + TIMEZONE, True],
+        ],
+    )
+    def test_start_exclusive(self, datetimerange_start_exclusive, value, expected):
+        assert (value in datetimerange_start_exclusive) == expected
+
+    @pytest.mark.parametrize(
+        ["value", "expected"],
+        [
+            [TEST_START_DATETIME, True],
+            [TEST_END_DATETIME, False],
+            [
+                DateTimeRange("2015-03-22 10:05:00" + TIMEZONE, "2015-03-22 10:10:00" + TIMEZONE),
+                False,
+            ],
+            [
+                DateTimeRange("2015-03-22 10:00:00" + TIMEZONE, "2015-03-22 10:10:00" + TIMEZONE),
+                False,
+            ],
+            ["2015-03-22 09:59:59" + TIMEZONE, False],
+            ["2015-03-22 10:10:01" + TIMEZONE, False],
+            ["2015-03-22 10:00:00" + TIMEZONE, True],
+            ["2015-03-22 10:10:00" + TIMEZONE, False],
+        ],
+    )
+    def test_end_exclusive(self, datetimerange_end_exclusive, value, expected):
+        assert (value in datetimerange_end_exclusive) == expected
+
+    @pytest.mark.parametrize(
+        ["value", "expected"],
+        [
+            [TEST_START_DATETIME, False],
+            [TEST_END_DATETIME, False],
+            [
+                DateTimeRange("2015-03-22 10:00:00" + TIMEZONE, "2015-03-22 10:05:00" + TIMEZONE),
+                False,
+            ],
+            [
+                DateTimeRange("2015-03-22 10:00:00" + TIMEZONE, "2015-03-22 10:10:00" + TIMEZONE),
+                False,
+            ],
+            [
+                DateTimeRange("2015-03-22 10:00:00" + TIMEZONE, "2015-03-22 10:10:00" + TIMEZONE),
+                False,
+            ],
+            [
+                DateTimeRange("2015-03-22 10:05:00" + TIMEZONE, "2015-03-22 10:06:00" + TIMEZONE),
+                True,
+            ],
+            ["2015-03-22 09:59:59" + TIMEZONE, False],
+            ["2015-03-22 10:10:01" + TIMEZONE, False],
+            ["2015-03-22 10:00:00" + TIMEZONE, False],
+            ["2015-03-22 10:10:00" + TIMEZONE, False],
+        ],
+    )
+    def test_all_exclusive(self, datetimerange_all_exclusive, value, expected):
+        assert (value in datetimerange_all_exclusive) == expected
 
     @pytest.mark.parametrize(
         ["value", "expected"], [[None, TypeError], [False, TypeError], [20140513221937, TypeError]]

@@ -7,6 +7,7 @@
 from __future__ import division, unicode_literals
 
 import datetime
+import operator
 
 import dateutil.parser
 import dateutil.relativedelta as rdelta
@@ -111,13 +112,13 @@ class DateTimeRange(object):
 
         return self
 
-    def __contains__(self, x):
+    def __contains__(self, other):
         """
-        :param x:
+        :param other:
             |datetime|/``DateTimeRange`` instance to compare.
             Parse and convert to |datetime| if the value type is |str|.
-        :type x: |datetime|/``DateTimeRange``/|str|
-        :return: |True| if the ``x`` is within the time range
+        :type other: |datetime|/``DateTimeRange``/|str|
+        :return: |True| if the ``other`` is within the time range
         :rtype: bool
         :Sample Code:
             .. code:: python
@@ -138,29 +139,30 @@ class DateTimeRange(object):
 
         self.validate_time_inversion()
 
-        if isinstance(x, DateTimeRange):
-            if (
-                not self.start_inclusive and x.start_datetime == self.start_datetime
-            ) or (
-                not self.end_inclusive and x.end_datetime == self.end_datetime
-            ):
-                return False
+        if isinstance(other, DateTimeRange):
+            self_tmp_start = self.start_datetime
+            self_tmp_end = self.end_datetime
+            other_tmp_start = other.start_datetime
+            other_tmp_end = other.end_datetime
 
-            return x.start_datetime >= self.start_datetime and x.end_datetime <= self.end_datetime
+            # swap start and end if time range is negative
+            if self.timedelta < datetime.timedelta(0):
+                self_tmp_start, self_tmp_end = self_tmp_end, self_tmp_start
+            if other.timedelta < datetime.timedelta(0):
+                other_tmp_start, other_tmp_end = other_tmp_end, other_tmp_start
+
+            start_op = operator.gt if other.start_inclusive and not self.start_inclusive else operator.ge
+            end_op = operator.lt if other.end_inclusive and not self.end_inclusive else operator.le
+            return start_op(other_tmp_start, self_tmp_start) and end_op(other_tmp_end, self_tmp_end)
 
         try:
-            value = dateutil.parser.parse(x)
+            value = dateutil.parser.parse(other)
         except (TypeError, AttributeError):
-            value = x
+            value = other
 
-        if (
-            not self.start_inclusive and value == self.start_datetime
-        ) or (
-            not self.end_inclusive and value == self.end_datetime
-        ):
-            return False
-
-        return self.start_datetime <= value <= self.end_datetime
+        start_op = operator.ge if self.start_inclusive else operator.gt
+        end_op = operator.le if self.end_inclusive else operator.lt
+        return start_op(value, self.start_datetime) and end_op(value, self.end_datetime)
 
     @property
     def start_datetime(self):

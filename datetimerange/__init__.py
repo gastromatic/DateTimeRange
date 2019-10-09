@@ -83,7 +83,8 @@ class DateTimeRange(object):
             return False
 
         return all(
-            [self.start_datetime == other.start_datetime, self.end_datetime == other.end_datetime]
+            [self.start_datetime == other.start_datetime and self.start_inclusive == other.start_inclusive,
+             self.end_datetime == other.end_datetime and self.end_inclusive == other.end_inclusive]
         )
 
     def __ne__(self, other):
@@ -91,7 +92,8 @@ class DateTimeRange(object):
             return True
 
         return any(
-            [self.start_datetime != other.start_datetime, self.end_datetime != other.end_datetime]
+            [self.start_datetime != other.start_datetime or self.start_inclusive != other.start_inclusive,
+             self.end_datetime != other.end_datetime or self.end_inclusive != other.end_inclusive]
         )
 
     def __add__(self, other):
@@ -120,19 +122,25 @@ class DateTimeRange(object):
         :type other: |datetime|/``DateTimeRange``/|str|
         :return: |True| if the ``other`` is within the time range
         :rtype: bool
+
         :Sample Code:
             .. code:: python
+
                 from datetimerange import DateTimeRange
+
                 time_range = DateTimeRange("2015-03-22T10:00:00+0900", "2015-03-22T10:10:00+0900")
                 print("2015-03-22T10:05:00+0900" in time_range)
                 print("2015-03-22T10:15:00+0900" in time_range)
+
                 time_range_smaller = DateTimeRange("2015-03-22T10:03:00+0900", "2015-03-22T10:07:00+0900")
                 print(time_range_smaller in time_range)
         :Output:
             .. parsed-literal::
+
                 True
                 False
                 True
+
         .. seealso::
             :py:meth:`.validate_time_inversion`
         """
@@ -140,20 +148,9 @@ class DateTimeRange(object):
         self.validate_time_inversion()
 
         if isinstance(other, DateTimeRange):
-            self_tmp_start = self.start_datetime
-            self_tmp_end = self.end_datetime
-            other_tmp_start = other.start_datetime
-            other_tmp_end = other.end_datetime
-
-            # swap start and end if time range is negative
-            if self.timedelta < datetime.timedelta(0):
-                self_tmp_start, self_tmp_end = self_tmp_end, self_tmp_start
-            if other.timedelta < datetime.timedelta(0):
-                other_tmp_start, other_tmp_end = other_tmp_end, other_tmp_start
-
             start_op = operator.gt if other.start_inclusive and not self.start_inclusive else operator.ge
             end_op = operator.lt if other.end_inclusive and not self.end_inclusive else operator.le
-            return start_op(other_tmp_start, self_tmp_start) and end_op(other_tmp_end, self_tmp_end)
+            return start_op(other.start_datetime, self.start_datetime) and end_op(other.end_datetime, self.end_datetime)
 
         try:
             value = dateutil.parser.parse(other)

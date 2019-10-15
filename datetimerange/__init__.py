@@ -7,6 +7,7 @@
 from __future__ import division, unicode_literals
 
 import datetime
+import operator
 
 import dateutil.parser
 import dateutil.relativedelta as rdelta
@@ -55,11 +56,16 @@ class DateTimeRange(object):
         end_datetime=None,
         start_time_format="%Y-%m-%dT%H:%M:%S%z",
         end_time_format="%Y-%m-%dT%H:%M:%S%z",
+        start_inclusive=True,
+        end_inclusive=True,
     ):
         self.set_time_range(start_datetime, end_datetime)
 
         self.start_time_format = start_time_format
         self.end_time_format = end_time_format
+
+        self.start_inclusive = start_inclusive
+        self.end_inclusive = end_inclusive
 
         self.is_output_elapse = False
         self.separator = " - "
@@ -77,7 +83,8 @@ class DateTimeRange(object):
             return False
 
         return all(
-            [self.start_datetime == other.start_datetime, self.end_datetime == other.end_datetime]
+            [self.start_datetime == other.start_datetime and self.start_inclusive == other.start_inclusive,
+             self.end_datetime == other.end_datetime and self.end_inclusive == other.end_inclusive]
         )
 
     def __ne__(self, other):
@@ -85,7 +92,8 @@ class DateTimeRange(object):
             return True
 
         return any(
-            [self.start_datetime != other.start_datetime, self.end_datetime != other.end_datetime]
+            [self.start_datetime != other.start_datetime or self.start_inclusive != other.start_inclusive,
+             self.end_datetime != other.end_datetime or self.end_inclusive != other.end_inclusive]
         )
 
     def __add__(self, other):
@@ -106,13 +114,13 @@ class DateTimeRange(object):
 
         return self
 
-    def __contains__(self, x):
+    def __contains__(self, other):
         """
-        :param x:
+        :param other:
             |datetime|/``DateTimeRange`` instance to compare.
             Parse and convert to |datetime| if the value type is |str|.
-        :type x: |datetime|/``DateTimeRange``/|str|
-        :return: |True| if the ``x`` is within the time range
+        :type other: |datetime|/``DateTimeRange``/|str|
+        :return: |True| if the ``other`` is within the time range
         :rtype: bool
 
         :Sample Code:
@@ -139,15 +147,19 @@ class DateTimeRange(object):
 
         self.validate_time_inversion()
 
-        if isinstance(x, DateTimeRange):
-            return x.start_datetime >= self.start_datetime and x.end_datetime <= self.end_datetime
+        if isinstance(other, DateTimeRange):
+            start_op = operator.gt if other.start_inclusive and not self.start_inclusive else operator.ge
+            end_op = operator.lt if other.end_inclusive and not self.end_inclusive else operator.le
+            return start_op(other.start_datetime, self.start_datetime) and end_op(other.end_datetime, self.end_datetime)
 
         try:
-            value = dateutil.parser.parse(x)
+            value = dateutil.parser.parse(other)
         except (TypeError, AttributeError):
-            value = x
+            value = other
 
-        return self.start_datetime <= value <= self.end_datetime
+        start_op = operator.ge if self.start_inclusive else operator.gt
+        end_op = operator.le if self.end_inclusive else operator.lt
+        return start_op(value, self.start_datetime) and end_op(value, self.end_datetime)
 
     @property
     def start_datetime(self):
